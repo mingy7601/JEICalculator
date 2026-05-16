@@ -2,10 +2,6 @@ from pprint import pprint
 
 #test_input = "item:contenttweaker:mythic_machine_case:0"
 
-def get_input():
-    print("Enter final product")
-    product = input()
-    return product
 def would_cycle(input_id, target_id, recipes, visited, depth=0, max_depth=2):
     """Returns True if expanding input_id would eventually require target_id."""
     if depth > max_depth:
@@ -59,6 +55,7 @@ def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, v
             "step": step,
             "category": recipe.get("category"),
             "category_name": recipe.get("category_name"),
+            "image_path" : recipe.get("image_path",""),
             "inputs": [
                 {**build_tree(inp["id"], recipes, step + 1, max_steps, name=inp.get("name"), id_to_name=id_to_name, visited=child_visited), "qty": inp.get("qty", 1)}
                 for inp in recipe.get("inputs", [])
@@ -70,7 +67,7 @@ def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, v
     return {"item": item, "name": name or (id_to_name.get(item) if id_to_name else item), "source": "cycle"}
 
 def calculate(recipes):
-    #product = test_input #get_input()
+    #product = test_input
     #(build_tree(product,recipes))
     #pprint(result)
 

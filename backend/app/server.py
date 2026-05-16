@@ -1,18 +1,17 @@
-from ftplib import print_line
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from calculate import build_tree
+from tree import build_tree
 from file_loader import load_file
 import os
-
-app = Flask(__name__)
-CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(BASE_DIR, "data/locales/en_us", "index.json")
 
+app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "data"), static_url_path="/static/data")
+CORS(app)
+
 def tree_to_tsx(node, is_root=False):
+    #print(node)
     item_id = node.get("item", "unknown")
     source = node.get("source")
     inputs = node.get("inputs", [])
@@ -38,13 +37,14 @@ def tree_to_tsx(node, is_root=False):
 
     meta = node.get("category_name", "N/A")
 
-    #imageUrl = "http://localhost:5000/static/" + node.get("img")
+    image_url = "http://localhost:5000/static/" + node.get("image_path", "")
+    #print ("path", node.get("image_path", "NOTHING"))
     result = {
         "id": item_id,
         "label": label,
         "type": node_type,
         "meta": meta,
-        #"imageUrl" : imageUrl,
+        "imageUrl" : image_url,
     }
 
     if inputs:
@@ -79,7 +79,7 @@ def tree():
                 root_name = output.get("name", item)
                 break
 
-    raw = build_tree(item_id, recipes, 0, 20, name=root_name)
+    raw = build_tree(item_id, recipes, 0, 5, name=root_name)
     return jsonify(tree_to_tsx(raw, is_root=True))
 
 if __name__ == "__main__":

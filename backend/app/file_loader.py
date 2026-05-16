@@ -28,7 +28,7 @@ def load_file(recipes, file_dir):
             recipe_id += 1
             inputs = recipe.get("inputs",[])
             raw_outputs = recipe.get("outputs",[])
-            category_name = raw_outputs[0].get("category") if raw_outputs else None
+            category_name = recipe.get("categoryTitle", "")
             outputs = [{"id": o["id"], "name": o.get("name")} for o in raw_outputs]
             image_path = recipe.get("img","")
 
