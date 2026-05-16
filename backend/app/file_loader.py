@@ -4,40 +4,44 @@ from collections import Counter
 
 #categories [{id, uid, title, modName, recipeCount,recipes}]
 
-FILE_DIR = 'index.slim.json'
-
 def write_file(json_file):
     with open("dump.json", "w") as file:
         json.dump(json_file, file, indent=4)
 
 def compress_inputs(inputs):
     counts = Counter(item["id"] for item in inputs)
+    names = {item["id"]: item.get("name") for item in inputs}
 
     return [
-        {"id": item_id, "qty": qty}
+        {"id": item_id, "qty": qty, "name": names.get(item_id)}
         for item_id, qty in counts.items()
     ]
 
-def load_file(recipes):
-    with open(FILE_DIR, 'r', encoding="utf-8") as file:
+def load_file(recipes, file_dir):
+    recipe_id = 0
+    with open(file_dir, 'r', encoding="utf-8") as file:
         data = json.load(file)
-        # print(data["categories"])
-        # new_json = json.dumps(data["categories"],indent=1)
-        #categories = json.dumps(data["categories"], indent=1)
 
     for category in data["categories"]:
         uid = category["uid"]
         for recipe in category["recipes"]:
+            recipe_id += 1
             inputs = recipe.get("inputs",[])
-            outputs = recipe.get("outputs",[])
+            raw_outputs = recipe.get("outputs",[])
+            category_name = raw_outputs[0].get("category") if raw_outputs else None
+            outputs = [{"id": o["id"], "name": o.get("name")} for o in raw_outputs]
+            image_path = recipe.get("img","")
 
             if not outputs:
                 continue
 
             recipe_data = {
+                "id": recipe_id,
                 "category": uid,
+                "category_name": category_name,
+                "outputs": outputs,
                 "inputs": compress_inputs(inputs),
-                "outputs": outputs
+                "image_path": image_path
             }
 
             for output in outputs:
