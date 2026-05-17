@@ -15,6 +15,7 @@ type NodeType = "root" | "service" | "module" | "component" | "resource";
 
 interface TreeNode {
   id: string;
+  itemId?: string;
   label: string;
   type: NodeType;
   meta?: string;
@@ -22,6 +23,13 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
+interface AltOption {
+  recipe_id: number;
+  category_name: string;
+  image_url: string;
+  inputs: { name: string; qty: number }[];
+  outputs: { id: string; name: string; qty: number }[];
+}
 // ─── Layout engine ────────────────────────────────────────────────────────────
 // Nodes have variable height: base height + optional image panel.
 // The subtree height algorithm works in pixels so mixed card sizes compose cleanly.
@@ -125,6 +133,7 @@ function assignUniqueIdsInner(node: TreeNode): TreeNode {
   const uid = `node_${uidCounter++}`;
   return {
     ...node,
+    itemId: node.id,
     id: uid,
     children: node.children?.map((child) => assignUniqueIdsInner(child)),
   };
@@ -144,15 +153,23 @@ function countAll(node: TreeNode): number {
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
-async function fetchTreeRoot(query: string): Promise<TreeNode> {
+async function fetchTreeRoot(query: string, overrides: Record<string, number> = {}): Promise<TreeNode> {
   const res = await fetch(
-    `http://localhost:5000/tree?item=${encodeURIComponent(query)}`
+    `http://localhost:5000/tree?item=${encodeURIComponent(query)}&overrides=${encodeURIComponent(JSON.stringify(overrides))}`
   );
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(body || `${res.status} ${res.statusText}`);
   }
   return res.json() as Promise<TreeNode>;
+}
+
+async function fetchAlternatives(itemId: string): Promise<AltOption[]> {
+  const res = await fetch(
+    `http://localhost:5000/alternatives?item_id=${encodeURIComponent(itemId)}`
+  );
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<AltOption[]>;
 }
 
 type ItemsData = Record<string, { name: string; qty: number }>;
@@ -179,6 +196,16 @@ const INIT_EXPANDED = new Set<string>([
 ]);
 
 export default function App() {
+const [overrides, setOverrides] = useState<Record<string, number>>({});
+const [altPanel, setAltPanel] = useState<{
+  nodeId: string;
+  realItemId: string;  // ← add this
+  x: number;
+  y: number;
+  options: AltOption[];
+} | null>(null);
+
+const [altLoading, setAltLoading] = useState(false);
   //const [treeRoot, setTreeRoot] = useState<TreeNode>(() => assignUniqueIds(DEMO_TREE));
   const [treeRoot, setTreeRoot] = useState<TreeNode | null>(null);
   const [items, setItems] = useState<ItemsData>({});
@@ -274,22 +301,24 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+    setOverrides({});
   };
 
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).closest("[data-node]")) return;
-      isPanning.current = true;
-      setPanActive(true);
-      dragOrigin.current = {
-        mx: e.clientX,
-        my: e.clientY,
-        px: pan.x,
-        py: pan.y,
-      };
-    },
-    [pan]
-  );
+const onMouseDown = useCallback(
+  (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("[data-node]")) return;
+    setAltPanel(null);
+    isPanning.current = true;
+    setPanActive(true);
+    dragOrigin.current = {
+      mx: e.clientX,
+      my: e.clientY,
+      px: pan.x,
+      py: pan.y,
+    };
+  },
+  [pan]
+);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isPanning.current) return;
@@ -305,6 +334,44 @@ export default function App() {
   }, []);
 
   const totalNodes = useMemo(() => treeRoot ? countAll(treeRoot) : 0, [treeRoot]);
+
+  const handleAltClick = useCallback(async (e: React.MouseEvent, node: LayoutNode) => {
+      e.stopPropagation();
+      if (altPanel?.nodeId === node.id) {
+        setAltPanel(null);
+        return;
+      }
+      setAltLoading(true);
+      setAltPanel(null);
+      try {
+        const realId = node.itemId ?? node.id;  // ← use real item ID
+        const options = await fetchAlternatives(realId);
+        setAltPanel({ nodeId: node.id, realItemId: realId, x: node.x + NODE_W + 8, y: node.y, options });
+      } catch (err) {
+        toast.error("Failed to load alternatives");
+      } finally {
+        setAltLoading(false);
+      }
+  }, [altPanel]);
+
+const handleSelectAlt = useCallback(async (itemId: string, recipeId: number) => {
+  const newOverrides = { ...overrides, [altPanel.realItemId]: recipeId };
+  setOverrides(newOverrides);
+  setAltPanel(null);
+  setIsLoading(true);
+  try {
+    const data = await fetchTreeRoot(searchQuery, newOverrides);
+    const uniqueTree = assignUniqueIds(data);
+    setTreeRoot(uniqueTree);
+    setTreeExpanded(new Set([uniqueTree.id]));
+    setCardExpanded(new Set());
+    setSelected(null);
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Failed to reload tree");
+  } finally {
+    setIsLoading(false);
+  }
+}, [overrides, searchQuery, altPanel]);
 
   return (
     <>
@@ -522,7 +589,61 @@ export default function App() {
                   );
                 })}
               </svg>
-
+              {/* Alt panel */}
+              {altPanel && (
+                <div
+                  data-node
+                  style={{
+                    position: "absolute",
+                    left: altPanel.x,
+                    top: altPanel.y,
+                    width: 260,
+                    zIndex: 50,
+                    background: "#0e0e1a",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    borderRadius: 10,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div className="px-3 py-2 border-b border-border text-[11px] text-muted-foreground">
+                    {altPanel.options.length} alternative{altPanel.options.length !== 1 ? "s" : ""}
+                  </div>
+                  {altPanel.options.length === 0 ? (
+                    <div className="px-3 py-4 text-[11px] text-muted-foreground text-center">
+                      No alternatives available
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {altPanel.options.map((opt) => {
+                        const isActive = overrides[altPanel.nodeId] === opt.recipe_id;
+                        return (
+                          <button
+                            key={opt.recipe_id}
+                            data-node
+                            onClick={() => handleSelectAlt(altPanel.nodeId, opt.recipe_id)}
+                            className="flex flex-col gap-1 px-3 py-2.5 text-left border-b border-border last:border-0 hover:bg-white/[0.04] transition-colors"
+                            style={isActive ? { background: "rgba(34,211,238,0.07)" } : {}}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-medium text-foreground truncate">
+                                {opt.category_name}
+                              </span>
+                              {isActive && (
+                                <span className="text-[10px] shrink-0" style={{ color: "#22d3ee" }}>active</span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {opt.inputs.map(i => `${i.name} ×${i.qty}`).join(", ")}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Nodes */}
               <AnimatePresence>
                 {nodes.map((node) => {
@@ -591,6 +712,24 @@ export default function App() {
                               <span className="text-[13px] font-medium text-foreground truncate leading-tight">
                                 {node.label}
                               </span>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                            {node.type !== "resource" && (
+                              <button
+                                data-node
+                                className="w-[22px] h-[22px] flex items-center justify-center rounded hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                                style={altPanel?.nodeId === node.id ? { color: "#22d3ee" } : {}}
+                                onClick={(e) => handleAltClick(e, node)}
+                                aria-label="Show alternative recipes"
+                                title="Alternatives"
+                              >
+                                {altLoading && altPanel === null ? (
+                                  <Loader2 size={10} className="animate-spin" />
+                                ) : (
+                                  <span style={{ fontSize: 11 }}>⇄</span>
+                                )}
+                              </button>
+                            )}
                             </div>
                             {hasKids && (
                               <button

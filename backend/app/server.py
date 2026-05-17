@@ -1,7 +1,8 @@
+import json
 import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from tree import build_tree
+from tree import build_tree, would_cycle
 from file_loader import load_file
 from summarize_ingredients import sum_leaf_ingredients
 
@@ -84,8 +85,15 @@ def tree():
     item = request.args.get("item")
     if not item:
         return jsonify({"error": "missing item param"}), 400
+
+    overrides_raw = request.args.get("overrides", "{}")
+    try:
+        overrides = {k: int(v) for k, v in json.loads(overrides_raw).items()}
+    except (ValueError, TypeError):
+        overrides = {}
+
     item_id, root_name = handle_input(item)
-    raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name)
+    raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name, overrides=overrides)
     return jsonify(tree_to_tsx(raw, is_root=True))
 
 @app.get("/ingredients")
@@ -97,6 +105,35 @@ def ingredients():
     raw = build_tree(item_id, recipes, 0, MAX_STEPS)
     totals = sum_leaf_ingredients(raw)
     return jsonify(totals)
+
+@app.get("/alternatives")
+def alternatives():
+    item_id = request.args.get("item_id")
+    if not item_id:
+        return jsonify({"error": "missing item_id param"}), 400
+
+    options = recipes.get(item_id, [])
+    if not options:
+        return jsonify([])
+
+    visited = {item_id}
+    result = []
+    for recipe in options:
+        input_ids = [inp["id"] for inp in recipe.get("inputs", [])]
+        if any(would_cycle(inp_id, item_id, recipes, visited) for inp_id in input_ids):
+            continue
+        result.append({
+            "recipe_id": recipe["id"],
+            "category_name": recipe.get("category_name", "N/A"),
+            "image_url": "http://localhost:5000/static/" + recipe.get("image_path", ""),
+            "inputs": [
+                {"name": inp.get("name", inp["id"]), "qty": inp.get("qty", 1)}
+                for inp in recipe.get("inputs", [])
+            ],
+            "outputs": recipe.get("outputs", []),
+        })
+
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
