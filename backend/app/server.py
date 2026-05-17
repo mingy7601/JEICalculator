@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from tree import build_tree, would_cycle
@@ -25,9 +26,17 @@ def build_name_to_id(dictionary):
 
 recipes = {}
 emc_values = {}
-load_file(recipes, DATA_PATH,emc_values)
+start = time.perf_counter()
+load_file(recipes, DATA_PATH, emc_values)
+print(f"[loader] load_file: {time.perf_counter() - start:.2f}s")
+
+start = time.perf_counter()
 name_to_id = build_name_to_id(recipes)
+print(f"[loader] name_to_id: {time.perf_counter() - start:.2f}s")
+
+start = time.perf_counter()
 prune(recipes)
+print(f"[loader] prune: {time.perf_counter() - start:.2f}s")
 
 def tree_to_tsx(node, is_root=False):
     item_id = node.get("item", "unknown")
@@ -100,7 +109,9 @@ def tree():
         overrides = {}
 
     item_id, root_name = handle_input(item)
+    start = time.perf_counter()
     raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name, overrides=overrides, emc_values=emc_values)
+    print(f"[tree]   build_tree({item_id}): {time.perf_counter() - start:.3f}s")
     return jsonify(tree_to_tsx(raw, is_root=True))
 
 @app.get("/ingredients")
@@ -123,7 +134,6 @@ def alternatives():
     if not options:
         return jsonify([])
 
-    visited = {item_id}
     result = []
     for recipe in options:
         input_ids = [inp["id"] for inp in recipe.get("inputs", [])]
