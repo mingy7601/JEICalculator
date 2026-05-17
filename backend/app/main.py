@@ -1,7 +1,5 @@
 import json
 
-from flask import jsonify
-
 from backend.app.file_loader import prune, apply_emc
 from backend.app.server import tree_to_tsx
 from backend.app.tree import build_tree

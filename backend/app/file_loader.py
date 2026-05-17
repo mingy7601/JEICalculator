@@ -49,6 +49,18 @@ def prune(recipes):
     r.get("category") == "forestry.squeezer" and
     any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
 
+    # removes squeezer recipes with refactory
+    pattern = re.compile(r"item:forestry:refactory:.*", re.IGNORECASE)
+    prune_recipes(recipes, lambda r:
+    r.get("category") == "forestry.squeezer" and
+    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+
+    # removes squeezer recipes with capsules
+    pattern = re.compile(r"item:forestry:capsule:.*", re.IGNORECASE)
+    prune_recipes(recipes, lambda r:
+    r.get("category") == "forestry.squeezer" and
+    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+
     # removes fluid transposer - fills
     pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
     prune_recipes(recipes, lambda r:

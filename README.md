@@ -1,5 +1,16 @@
 # JEICalculator
 
+## Running frontend
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the frontend server.
+
+## Running backend
+
+  Run `python server.py` to start the backend server.
+
+
 ### TODO
 
 - [x] Images
@@ -30,3 +41,6 @@
 - [ ] Toggle to hide emc items from raw materials
 - [ ] Order raw materials by quantity
 - [ ] Toggle fluids and items in raw materials
+- [ ] Add quantity for root item
+- [ ] Extract reusable from tooltip
+- [ ] Handle recursive recipes
