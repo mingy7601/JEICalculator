@@ -43,6 +43,9 @@ def compress_inputs(inputs):
     ]
 
 def prune(recipes):
+    """
+        Removes recipe types that match the conditions
+    """
     # removes squeezer recipes with cans
     pattern = re.compile(r"item:forestry:can.*", re.IGNORECASE)
     prune_recipes(recipes, lambda r:
@@ -91,6 +94,31 @@ def apply_emc(recipes, emc_values):
                 if entry:
                     inp["emc"] = entry["emc"]
 
+def remove_recursive_self(recipe):
+    """
+    Detect recipes where an output item is also consumed as an input (recursive).
+    For each such output, subtract 1 from its qty (to reflect net gain) and remove it from inputs.
+    Recipes where net output qty drops to 0 or below are left unchanged (no real gain).
+    """
+    output_ids = {o["id"] for o in recipe.get("outputs", [])}
+    recursive_ids = {inp["id"] for inp in recipe.get("inputs", []) if inp["id"] in output_ids}
+
+    if not recursive_ids:
+        return recipe
+
+    new_outputs = []
+    for o in recipe["outputs"]:
+        if o["id"] in recursive_ids:
+            net_qty = o["qty"] - 1
+            if net_qty <= 0:
+                return recipe  # no real gain, leave recipe untouched
+            new_outputs.append({**o, "qty": net_qty})
+        else:
+            new_outputs.append(o)
+
+    new_inputs = [inp for inp in recipe["inputs"] if inp["id"] not in recursive_ids]
+
+    return {**recipe, "outputs": new_outputs, "inputs": new_inputs}
 
 def load_file(recipes, file_dir, emc_values=None):
     recipe_id = 0
@@ -144,6 +172,7 @@ def load_file(recipes, file_dir, emc_values=None):
                 "inputs": compress_inputs(inputs),
                 "image_path": image_path
             }
+            recipe_data = remove_recursive_self(recipe_data)
 
             for output in outputs:
                 key = output["id"]
