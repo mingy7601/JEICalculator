@@ -24,7 +24,8 @@ def build_name_to_id(dictionary):
     return result
 
 recipes = {}
-load_file(recipes, DATA_PATH)
+emc_values = {}
+load_file(recipes, DATA_PATH,emc_values)
 name_to_id = build_name_to_id(recipes)
 prune(recipes)
 

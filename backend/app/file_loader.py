@@ -44,7 +44,7 @@ def compress_inputs(inputs):
 
 def prune(recipes):
     # removes squeezer recipes with cans
-    pattern = re.compile(r"forestry:can.*", re.IGNORECASE)
+    pattern = re.compile(r"item:forestry:can.*", re.IGNORECASE)
     prune_recipes(recipes, lambda r:
     r.get("category") == "forestry.squeezer" and
     any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
@@ -71,7 +71,16 @@ def prune_recipes(recipes, predicate):
     for key in keys_to_delete:
         del recipes[key]
 
-def load_file(recipes, file_dir):
+def apply_emc(recipes, emc_values):
+    for recipe_list in recipes.values():
+        for recipe in recipe_list:
+            for inp in recipe["inputs"]:
+                entry = emc_values.get(inp["id"])
+                if entry:
+                    inp["emc"] = entry["emc"]
+
+
+def load_file(recipes, file_dir, emc_values=None):
     recipe_id = 0
     with open(file_dir, 'r', encoding="utf-8") as file:
         data = json.load(file)
@@ -91,6 +100,28 @@ def load_file(recipes, file_dir):
 
             if not outputs:
                 continue
+
+            if emc_values is not None:
+                for slot in recipe.get("slots", []):
+                    tooltip = slot.get("tooltip", [])
+                    emc = None
+                    emc_idx = None
+                    for i, line in enumerate(tooltip):
+                        match = re.search(r'(?<!stack )emc\s*:\s*([\d,]+)', line, re.IGNORECASE)
+                        if match:
+                            emc = int(match.group(1).replace(",", ""))
+                            emc_idx = i
+                    if emc is None or emc_idx is None:
+                        continue
+                    for line in tooltip:
+                        key = line.strip()
+                        if ":" in key and not re.match(r'\s*(stack\s+)?emc\s*:', key, re.IGNORECASE):
+                            if key not in emc_values:
+                                key = "item:" + key
+                                emc_values[key] = {
+                                    "name": tooltip[0] if tooltip else "",
+                                    "emc": emc
+                                }
 
             recipe_data = {
                 "id": recipe_id,

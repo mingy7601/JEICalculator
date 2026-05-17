@@ -8,7 +8,7 @@
 - [x] Multiply ingredient nodes to produce output
 - [x] Create sidebar for to aggregate materials
 - [ ] Get machine rates, such as speed and energy costs
-- [ ] Read tooltip for emc
+- [x] Read tooltip for emc
 - [ ] Tree search bar and focus
 - [ ] Clicking the item in the sidebar will highlight the nodes associated with it
 - [x] Enable rebuilding of the tree by selecting alternative routes
@@ -26,3 +26,4 @@
 - [x] Filter out fluid filling / extracting recipes
 - [ ] Add machine priority between similar machines
 - [ ] Remove redundant recipes when there is a clear upgrade
+- [ ] Someday get rid of the item: tag before every item
