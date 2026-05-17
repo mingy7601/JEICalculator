@@ -1,14 +1,13 @@
 import json
-import os
 
+from backend.app.file_loader import prune
 from backend.app.tree import build_tree
 from file_loader import load_file
-from pprint import pprint
 
 if __name__ == '__main__':
     recipes = {}
     load_file(recipes, "backend/data/locales/en_us/index.json")
-    #pprint(recipes)
+    prune(recipes)
     with open("data.json", "w") as f:
         json.dump(recipes,f, indent=2)
 

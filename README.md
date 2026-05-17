@@ -21,3 +21,8 @@
 - [ ] Create a search bar helper
 - [ ] Item vs fluid handling
 - [ ] Initially expanded alt does not show current active
+- [ ] Add timers to show loading speeds
+- [ ] Make invalid search return item not found
+- [x] Filter out fluid filling / extracting recipes
+- [ ] Add machine priority between similar machines
+- [ ] Remove redundant recipes when there is a clear upgrade

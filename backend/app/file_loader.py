@@ -7,14 +7,14 @@ import re
 BLACKLISTED_CATEGORIES = ["tconstruct:harvest_stats",
                           "tconstruct:projectile_stats",
                           "tconstruct:ranged_stats",
-                          re.compile(r"tce_*", re.IGNORECASE),
+                          re.compile(r"tce.*", re.IGNORECASE),
                           "thermaldynamics.covers",
                           "TechReborn.ThermalGenerator",
                           "TechReborn.PlasmaGenerator", "TechReborn.GasTurbine","TechReborn.DieselGenerator",
                           "reim.multiblock","projectex.alchemy_table",
-                          re.compile(r"plethora-core:*", re.IGNORECASE),
+                          re.compile(r"plethora-core.*", re.IGNORECASE),
                           "packagedauto:package_contents", "compressed_cobblestone", "nae2:cell_view",
-                          re.compile(r"mysticalagriculture:*", re.IGNORECASE),
+                          re.compile(r"mysticalagriculture:.*", re.IGNORECASE),
                           "justenoughreactors:turbine", "justenoughreactors:reactor", "jeresources.villager",
                           "if_manual_category", "ie.bottlingMachine", "hatchery.generator.recipe"
                           ]
@@ -41,6 +41,35 @@ def compress_inputs(inputs):
         {"id": item_id, "qty": qty, "name": names.get(item_id)}
         for item_id, qty in counts.items()
     ]
+
+def prune(recipes):
+    # removes squeezer recipes with cans
+    pattern = re.compile(r"forestry:can.*", re.IGNORECASE)
+    prune_recipes(recipes, lambda r:
+    r.get("category") == "forestry.squeezer" and
+    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+
+    # removes fluid transposer - fills
+    pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
+    prune_recipes(recipes, lambda r:
+    r.get("category") == "thermalexpansion.transposer_fill" and
+    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+
+    # removes fluid transposer - fills
+    pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
+    prune_recipes(recipes, lambda r:
+    r.get("category") == "thermalexpansion.transposer_extract" and
+    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+
+def prune_recipes(recipes, predicate):
+    """Remove individual recipes matching predicate. Remove the key entirely if no recipes remain."""
+    keys_to_delete = []
+    for item_id, options in recipes.items():
+        recipes[item_id] = [r for r in options if not predicate(r)]
+        if not recipes[item_id]:
+            keys_to_delete.append(item_id)
+    for key in keys_to_delete:
+        del recipes[key]
 
 def load_file(recipes, file_dir):
     recipe_id = 0

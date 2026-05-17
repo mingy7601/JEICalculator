@@ -3,7 +3,7 @@ import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from tree import build_tree, would_cycle
-from file_loader import load_file
+from file_loader import load_file, prune
 from summarize_ingredients import sum_leaf_ingredients
 
 MAX_STEPS = 5
@@ -26,6 +26,7 @@ def build_name_to_id(dictionary):
 recipes = {}
 load_file(recipes, DATA_PATH)
 name_to_id = build_name_to_id(recipes)
+prune(recipes)
 
 def tree_to_tsx(node, is_root=False):
     item_id = node.get("item", "unknown")
