@@ -360,6 +360,13 @@ const onMouseDown = useCallback(
       }
   }, [altPanel]);
 
+function collectDescendantItemIds(node: TreeNode, targetItemId: string, found = false, out = new Set<string>()): Set<string> {
+  if (found) out.add(node.itemId ?? node.id);
+  const isTarget = (node.itemId ?? node.id) === targetItemId;
+  node.children?.forEach(c => collectDescendantItemIds(c, targetItemId, found || isTarget, out));
+  return out;
+}
+
 const handleSelectAlt = useCallback(async (itemId: string, recipeId: number) => {
   const newOverrides = { ...overrides, [altPanel.realItemId]: recipeId };
   setOverrides(newOverrides);
@@ -369,15 +376,51 @@ const handleSelectAlt = useCallback(async (itemId: string, recipeId: number) => 
     const data = await fetchTreeRoot(searchQuery, newOverrides);
     const uniqueTree = assignUniqueIds(data);
     setTreeRoot(uniqueTree);
-    setTreeExpanded(new Set([uniqueTree.id]));
-    setCardExpanded(new Set());
+
+    // Collect itemIds that are descendants of the changed node in the NEW tree
+    const changedItemId = altPanel.realItemId;
+    const descendantItemIds = collectDescendantItemIds(uniqueTree, changedItemId);
+
+    // Build a set of the new tree's unique node IDs whose itemId was previously expanded
+    // Map old expanded itemIds -> keep expanded in new tree, except descendants of changed node
+    const prevExpandedItemIds = new Set(
+      [...treeExpanded]
+        .map(uid => byId.get(uid)?.itemId)
+        .filter((iid): iid is string => !!iid)
+    );
+
+    const prevCardExpandedItemIds = new Set(
+      [...cardExpanded]
+        .map(uid => byId.get(uid)?.itemId)
+        .filter((iid): iid is string => !!iid)
+    );
+
+    const newExpanded = new Set<string>();
+    const newCardExpanded = new Set<string>();
+
+    function walk(node: TreeNode) {
+      const iid = node.itemId ?? node.id;
+      if (iid === uniqueTree.itemId ?? uniqueTree.id) {
+        newExpanded.add(node.id); // always keep root open
+      } else if (prevExpandedItemIds.has(iid) && !descendantItemIds.has(iid)) {
+        newExpanded.add(node.id);
+      }
+      if (prevCardExpandedItemIds.has(iid) && !descendantItemIds.has(iid)) {
+            newCardExpanded.add(node.id);
+      }
+      node.children?.forEach(walk);
+    }
+    walk(uniqueTree);
+
+    setTreeExpanded(newExpanded);
+    setCardExpanded(newCardExpanded);
     setSelected(null);
   } catch (err) {
     toast.error(err instanceof Error ? err.message : "Failed to reload tree");
   } finally {
     setIsLoading(false);
   }
-}, [overrides, searchQuery, altPanel]);
+}, [overrides, searchQuery, altPanel, treeExpanded, byId]);
 
   return (
     <>
