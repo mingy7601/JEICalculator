@@ -1,6 +1,9 @@
 import json
 
+from flask import jsonify
+
 from backend.app.file_loader import prune, apply_emc
+from backend.app.server import tree_to_tsx
 from backend.app.tree import build_tree
 from file_loader import load_file
 
@@ -13,8 +16,12 @@ if __name__ == '__main__':
     with open("data.json", "w") as f:
         json.dump(recipes,f, indent=2)
 
-    raw = build_tree("item:nuclearcraft:melter_idle", recipes, 0, 10, name="Melter")
+    raw = build_tree("item:nuclearcraft:melter_idle", recipes, 0, 10, name="Melter", emc_values = emc_values)
     with open("tree.json", "w") as f:
         json.dump(raw, f, indent=2)
     with open("emc.json", "w") as f:
         json.dump(emc_values,f, indent=2)
+
+    node =  tree_to_tsx(raw, is_root=True)
+    with open("node.json", "w") as f:
+        json.dump(node,f, indent=2)

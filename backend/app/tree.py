@@ -21,11 +21,13 @@ def would_cycle(input_id, target_id, recipes, visited, depth=0, max_depth=2):
         for inp in best.get("inputs", [])
     )
 
-def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, visited=None, overrides=None):
+def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, visited=None, overrides=None, emc_values=None):
     if overrides is None:
         overrides = {}
     if visited is None:
         visited = set()
+    if emc_values is None:
+        emc_values = {}
 
     if item in visited:
         return {"item": item, "name": name or (id_to_name.get(item) if id_to_name else item), "source": "cycle"}
@@ -73,12 +75,30 @@ def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, v
             "category_name": recipe.get("category_name"),
             "image_path": recipe.get("image_path", ""),
             "inputs": [
-                {**build_tree(inp["id"], recipes, step + 1, max_steps, name=inp.get("name"), id_to_name=id_to_name, visited=child_visited, overrides=overrides), "qty": inp.get("qty", 1)}
-                for inp in recipe.get("inputs", [])
-            ],
-            "outputs": recipe.get("outputs", [])
-        }
+                    {
+                        **(
+                            build_tree(
+                                inp["id"], recipes, step + 1, max_steps,
+                                name=inp.get("name"),
+                                id_to_name=id_to_name,
+                                visited=child_visited,
+                                overrides=overrides,
+                                emc_values=emc_values
+                            )
+                            if not emc_values.get(inp["id"])
+                            else {
+                                "item": inp["id"],
+                                "name": inp.get("name", inp["id"]),
+                                "source": "emc"
+                            }
+                        ),
+                        "qty": inp.get("qty", 1)
+                    }
+                    for inp in recipe.get("inputs", [])
+                ],
+                "outputs": recipe.get("outputs", [])
 
+        }
     return {"item": item, "name": name or (id_to_name.get(item) if id_to_name else item), "source": "cycle"}
 def calculate(recipes):
     #product = test_input

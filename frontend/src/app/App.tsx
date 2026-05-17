@@ -11,7 +11,7 @@ import { Toaster, toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type NodeType = "root" | "service" | "module" | "component" | "resource";
+type NodeType = "root" | "service" | "module" | "component" | "resource" | "emc";
 
 interface TreeNode {
   id: string;
@@ -119,6 +119,12 @@ const TYPE_CONFIG: Record<
     text: "#94a3b8",
     label: "Raw Resource",
   },
+  emc: {
+      dot: "#a855f7",
+      badge: "rgba(168,85,247,0.12)",
+      text: "#a855f7",
+      label: "EMC",
+  }
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

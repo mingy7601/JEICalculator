@@ -36,6 +36,8 @@ def tree_to_tsx(node, is_root=False):
 
     if is_root:
         node_type = "root"
+    elif source == "emc":
+        node_type = "emc"
     elif source in ("base", "Unknown"):
         node_type = "resource"
     elif not inputs:
@@ -53,7 +55,10 @@ def tree_to_tsx(node, is_root=False):
     qty_str = str(int(qty) if isinstance(qty, float) and qty.is_integer() else qty)
     label = label + " ×" + qty_str
 
-    meta = node.get("category_name", "N/A")
+    if node_type == "emc":
+        meta = "emc"
+    else:
+        meta = node.get("category_name", "N/A")
     image_url = "http://localhost:5000/static/" + node.get("image_path", "")
 
     result = {
@@ -95,7 +100,7 @@ def tree():
         overrides = {}
 
     item_id, root_name = handle_input(item)
-    raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name, overrides=overrides)
+    raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name, overrides=overrides, emc_values=emc_values)
     return jsonify(tree_to_tsx(raw, is_root=True))
 
 @app.get("/ingredients")
@@ -104,7 +109,7 @@ def ingredients():
     if not item:
         return jsonify({"error": "missing item param"}), 400
     item_id, _ = handle_input(item)
-    raw = build_tree(item_id, recipes, 0, MAX_STEPS)
+    raw = build_tree(item_id, recipes, 0, MAX_STEPS, emc_values=emc_values)
     totals = sum_leaf_ingredients(raw)
     return jsonify(totals)
 

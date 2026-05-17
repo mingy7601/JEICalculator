@@ -16,7 +16,7 @@ BLACKLISTED_CATEGORIES = ["tconstruct:harvest_stats",
                           "packagedauto:package_contents", "compressed_cobblestone", "nae2:cell_view",
                           re.compile(r"mysticalagriculture:.*", re.IGNORECASE),
                           "justenoughreactors:turbine", "justenoughreactors:reactor", "jeresources.villager",
-                          "if_manual_category", "ie.bottlingMachine", "hatchery.generator.recipe"
+                          "if_manual_category", "ie.bottlingMachine", "hatchery.generator.recipe", "thermalexpansion.smelter_pyrotheum"
                           ]
 
 def write_file(json_file):

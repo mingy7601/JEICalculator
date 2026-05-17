@@ -27,3 +27,6 @@
 - [ ] Add machine priority between similar machines
 - [ ] Remove redundant recipes when there is a clear upgrade
 - [ ] Someday get rid of the item: tag before every item
+- [ ] Toggle to hide emc items from raw materials
+- [ ] Order raw materials by quantity
+- [ ] Toggle fluids and items in raw materials
