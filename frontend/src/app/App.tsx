@@ -155,6 +155,19 @@ async function fetchTreeRoot(query: string): Promise<TreeNode> {
   return res.json() as Promise<TreeNode>;
 }
 
+type ItemsData = Record<string, { name: string; qty: number }>;
+
+async function fetchIngredients(query: string): Promise<ItemsData> {
+  const res = await fetch(
+    `http://localhost:5000/ingredients?item=${encodeURIComponent(query)}`
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(body || `${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<ItemsData>;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const INIT_EXPANDED = new Set<string>([
@@ -168,6 +181,8 @@ const INIT_EXPANDED = new Set<string>([
 export default function App() {
   //const [treeRoot, setTreeRoot] = useState<TreeNode>(() => assignUniqueIds(DEMO_TREE));
   const [treeRoot, setTreeRoot] = useState<TreeNode | null>(null);
+  const [items, setItems] = useState<ItemsData>({});
+
   useEffect(() => {
     const defaultItem = "melter";
     setSearchQuery(defaultItem);
@@ -179,6 +194,11 @@ export default function App() {
       })
       .catch((err) =>
         toast.error(err instanceof Error ? err.message : "Failed to load tree")
+      );
+    fetchIngredients(defaultItem)
+      .then((data) => setItems(data))
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to load ingredients")
       );
   }, []);
   const [treeExpanded, setTreeExpanded] = useState<Set<string>>(INIT_EXPANDED);
@@ -238,7 +258,10 @@ export default function App() {
     if (!q || isLoading) return;
     setIsLoading(true);
     try {
-      const data = await fetchTreeRoot(q);
+      const [data] = await Promise.all([
+        fetchTreeRoot(q),
+        fetchIngredients(q).then((ing) => setItems(ing)).catch(() => setItems({})),
+      ]);
       const uniqueTree = assignUniqueIds(data);
       setTreeRoot(uniqueTree);
       setTreeExpanded(new Set([uniqueTree.id]));
@@ -299,9 +322,11 @@ export default function App() {
       />
 
       <div
-        className="size-full flex flex-col bg-background text-foreground overflow-hidden"
+        className="size-full flex bg-background text-foreground overflow-hidden"
         style={{ fontFamily: "'Inter', sans-serif" }}
       >
+        {/* ── Main content ── */}
+        <div className="flex-1 flex flex-col min-w-0">
         {/* ── Toolbar ── */}
         <header className="shrink-0 flex items-center gap-3 border-b border-border px-4 h-12">
           {/* Brand */}
@@ -729,6 +754,69 @@ export default function App() {
             image
           </span>
         </footer>
+        </div>{/* ── end main content ── */}
+
+        {/* ── Sidebar: Raw Materials ── */}
+        <div
+          className="shrink-0 flex flex-col border-l border-border"
+          style={{ width: 460, background: "#0a0a0f" }}
+        >
+          {/* Sidebar header */}
+          <div className="shrink-0 h-12 flex items-center px-4 border-b border-border">
+            <span
+              className="w-1.5 h-1.5 rounded-full mr-2"
+              style={{ background: "#94a3b8" }}
+            />
+            <span className="text-lg font-semibold tracking-tight">
+              Raw Materials
+            </span>
+          </div>
+
+          {/* Items list */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {Object.keys(items).length === 0 ? (
+              <div className="text-center text-xs text-muted-foreground py-8">
+                No materials loaded
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {Object.entries(items).map(([key, item]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-border"
+                    style={{ background: "var(--card)" }}
+                  >
+                    <span
+                      className="text-xs text-foreground truncate mr-2"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </span>
+                    <span
+                      className="text-xs tabular-nums shrink-0 px-1.5 py-0.5 rounded"
+                      style={{
+                        background: "rgba(148,163,184,0.1)",
+                        color: "#94a3b8",
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      ×{item.qty % 1 === 0 ? item.qty.toFixed(0) : item.qty.toFixed(1)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar footer: total unique materials */}
+          <div
+            className="shrink-0 h-7 flex items-center px-4 border-t border-border text-[11px] text-muted-foreground"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {Object.keys(items).length} material
+            {Object.keys(items).length !== 1 ? "s" : ""}
+          </div>
+        </div>
       </div>
     </>
   );
