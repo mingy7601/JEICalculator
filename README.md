@@ -43,4 +43,4 @@
 - [ ] Toggle fluids and items in raw materials
 - [ ] Add quantity for root item
 - [ ] Extract reusable from tooltip
-- [ ] Handle recursive recipes
+- [x] Handle recursive recipes
