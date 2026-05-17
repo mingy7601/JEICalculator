@@ -5,11 +5,26 @@ from tree import build_tree
 from file_loader import load_file
 from summarize_ingredients import sum_leaf_ingredients
 
+MAX_STEPS = 5
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(BASE_DIR, "data/locales/en_us", "index.json")
 
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "data"), static_url_path="/static/data")
 CORS(app)
+
+def build_name_to_id(dictionary):
+    result = {}
+    for item_id, options in dictionary.items():
+        for recipe in options:
+            for output in recipe.get("outputs", []):
+                if output.get("id") == item_id and output.get("name"):
+                    result[output["name"].lower()] = item_id
+    return result
+
+recipes = {}
+load_file(recipes, DATA_PATH)
+name_to_id = build_name_to_id(recipes)
 
 def tree_to_tsx(node, is_root=False):
     item_id = node.get("item", "unknown")
@@ -51,19 +66,11 @@ def tree_to_tsx(node, is_root=False):
 
     return result
 
-def handle_input(item, recipes):
-    # Build this once when the server starts, outside the route
-    name_to_id = {}
-    for item_id, options in recipes.items():
-        for recipe in options:
-            for output in recipe.get("outputs", []):
-                if output.get("id") == item_id and output.get("name"):
-                    name_to_id[output["name"].lower()] = item_id
-# Try to resolve name to id, fall back to treating it as a raw id
+def handle_input(item):
     item_id = name_to_id.get(item.lower(), item)
 
     options = recipes.get(item_id, [])
-    root_name = item  # use the name the user typed as fallback
+    root_name = item
     if options:
         best = max(options, key=lambda r: sum(o.get("qty", 1) for o in r.get("outputs", [])))
         for output in best.get("outputs", []):
@@ -74,37 +81,21 @@ def handle_input(item, recipes):
 
 @app.get("/tree")
 def tree():
-    recipes = {}
-    load_file(recipes, DATA_PATH)
     item = request.args.get("item")
     if not item:
         return jsonify({"error": "missing item param"}), 400
-
-    item_id,root_name = handle_input(item, recipes)
-    raw = build_tree(item_id, recipes, 0, 5, name=root_name)
+    item_id, root_name = handle_input(item)
+    raw = build_tree(item_id, recipes, 0, MAX_STEPS, name=root_name)
     return jsonify(tree_to_tsx(raw, is_root=True))
 
 @app.get("/ingredients")
 def ingredients():
-    recipes = {}
-    load_file(recipes, DATA_PATH)
-
-    name_to_id = {}
-    for item_id, options in recipes.items():
-        for recipe in options:
-            for output in recipe.get("outputs", []):
-                if output.get("id") == item_id and output.get("name"):
-                    name_to_id[output["name"].lower()] = item_id
-
     item = request.args.get("item")
     if not item:
         return jsonify({"error": "missing item param"}), 400
-
-    item_id = name_to_id.get(item.lower(), item)
-
-    raw = build_tree(item_id, recipes, 0, 5)
+    item_id, _ = handle_input(item)
+    raw = build_tree(item_id, recipes, 0, MAX_STEPS)
     totals = sum_leaf_ingredients(raw)
-
     return jsonify(totals)
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import json
-from pprint import pprint
 from collections import Counter
 
 #categories [{id, uid, title, modName, recipeCount,recipes}]
@@ -29,14 +28,16 @@ def load_file(recipes, file_dir):
             inputs = recipe.get("inputs",[])
             raw_outputs = recipe.get("outputs",[])
             category_name = recipe.get("categoryTitle", "")
-            outputs = [{"id": o["id"], "name": o.get("name")} for o in raw_outputs]
+            outputs = [{"id": o["id"], "name": o.get("name"), "qty": o.get("qty", 1)} for o in raw_outputs]
             image_path = recipe.get("img","")
+            name = raw_outputs[0].get("name", "") if raw_outputs else ""
 
             if not outputs:
                 continue
 
             recipe_data = {
                 "id": recipe_id,
+                "name" : name,
                 "category": uid,
                 "category_name": category_name,
                 "outputs": outputs,
