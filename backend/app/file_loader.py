@@ -44,37 +44,26 @@ def compress_inputs(inputs):
 
 def prune(recipes):
     """
-        Removes recipe types that match the conditions
+            Removes recipe types that match the conditions
     """
-    # removes squeezer recipes with cans
-    pattern = re.compile(r"item:forestry:can.*", re.IGNORECASE)
+    squeezer_patterns = [
+        re.compile(r"item:forestry:can.*", re.IGNORECASE),
+        re.compile(r"item:forestry:refractory:.*", re.IGNORECASE),
+        re.compile(r"item:forestry:capsule:.*", re.IGNORECASE),
+    ]
     prune_recipes(recipes, lambda r:
-    r.get("category") == "forestry.squeezer" and
-    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
-
-    # removes squeezer recipes with refactory
-    pattern = re.compile(r"item:forestry:refactory:.*", re.IGNORECASE)
+        r.get("category") == "forestry.squeezer" and
+        any(
+            pat.search(inp["id"])
+            for pat in squeezer_patterns
+            for inp in r.get("inputs", [])
+        )
+    )
+    # removes fluid transposer - fill / extract recipes
+    reservoir_pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
     prune_recipes(recipes, lambda r:
-    r.get("category") == "forestry.squeezer" and
-    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
-
-    # removes squeezer recipes with capsules
-    pattern = re.compile(r"item:forestry:capsule:.*", re.IGNORECASE)
-    prune_recipes(recipes, lambda r:
-    r.get("category") == "forestry.squeezer" and
-    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
-
-    # removes fluid transposer - fills
-    pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
-    prune_recipes(recipes, lambda r:
-    r.get("category") == "thermalexpansion.transposer_fill" and
-    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
-
-    # removes fluid transposer - fills
-    pattern = re.compile(r"item:thermalexpansion:reservoir:.*", re.IGNORECASE)
-    prune_recipes(recipes, lambda r:
-    r.get("category") == "thermalexpansion.transposer_extract" and
-    any(pattern.search(inp["id"]) for inp in r.get("inputs", [])))
+        r.get("category") in ("thermalexpansion.transposer_fill", "thermalexpansion.transposer_extract") and
+        any(reservoir_pattern.search(inp["id"]) for inp in r.get("inputs", [])))
 
 def prune_recipes(recipes, predicate):
     """Remove individual recipes matching predicate. Remove the key entirely if no recipes remain."""

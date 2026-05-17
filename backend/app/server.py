@@ -127,7 +127,7 @@ def alternatives():
     result = []
     for recipe in options:
         input_ids = [inp["id"] for inp in recipe.get("inputs", [])]
-        if any(would_cycle(inp_id, item_id, recipes, visited) for inp_id in input_ids):
+        if any(would_cycle(inp_id, item_id, recipes) for inp_id in input_ids):
             continue
         result.append({
             "recipe_id": recipe["id"],
