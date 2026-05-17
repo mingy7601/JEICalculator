@@ -34,7 +34,7 @@ interface AltOption {
 // Nodes have variable height: base height + optional image panel.
 // The subtree height algorithm works in pixels so mixed card sizes compose cleanly.
 
-const NODE_W = 224;
+const NODE_W = 320;
 const NODE_H_BASE = 80; // content rows + toggle strip
 const NODE_H_IMAGE = 152; // image panel added when card is expanded
 const COL_GAP = 76;
@@ -590,60 +590,73 @@ const handleSelectAlt = useCallback(async (itemId: string, recipeId: number) => 
                 })}
               </svg>
               {/* Alt panel */}
-              {altPanel && (
-                <div
-                  data-node
-                  style={{
-                    position: "absolute",
-                    left: altPanel.x,
-                    top: altPanel.y,
-                    width: 260,
-                    zIndex: 50,
-                    background: "#0e0e1a",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    borderRadius: 10,
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div className="px-3 py-2 border-b border-border text-[11px] text-muted-foreground">
-                    {altPanel.options.length} alternative{altPanel.options.length !== 1 ? "s" : ""}
-                  </div>
-                  {altPanel.options.length === 0 ? (
-                    <div className="px-3 py-4 text-[11px] text-muted-foreground text-center">
-                      No alternatives available
+                {altPanel && (
+                  <div
+                    data-node
+                    style={{
+                      position: "absolute",
+                      left: altPanel.x,
+                      top: altPanel.y,
+                      width: Math.ceil(altPanel.options.length / 8) * 260,
+                      zIndex: 50,
+                      background: "#0e0e1a",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      borderRadius: 10,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div className="px-3 py-2 border-b border-border text-[11px] text-muted-foreground">
+                      {altPanel.options.length} alternative{altPanel.options.length !== 1 ? "s" : ""}
                     </div>
-                  ) : (
-                    <div className="flex flex-col">
-                      {altPanel.options.map((opt) => {
-                        const isActive = overrides[altPanel.nodeId] === opt.recipe_id;
-                        return (
-                          <button
-                            key={opt.recipe_id}
-                            data-node
-                            onClick={() => handleSelectAlt(altPanel.nodeId, opt.recipe_id)}
-                            className="flex flex-col gap-1 px-3 py-2.5 text-left border-b border-border last:border-0 hover:bg-white/[0.04] transition-colors"
-                            style={isActive ? { background: "rgba(34,211,238,0.07)" } : {}}
+                    {altPanel.options.length === 0 ? (
+                      <div className="px-3 py-4 text-[11px] text-muted-foreground text-center">
+                        No alternatives available
+                      </div>
+                    ) : (
+                      <div className="flex">
+                        {Array.from({ length: Math.ceil(altPanel.options.length / 8) }, (_, col) =>
+                          altPanel.options.slice(col * 8, col * 8 + 8)
+                        ).map((chunk, col) => (
+                          <div
+                            key={col}
+                            className="flex flex-col"
+                            style={{
+                              width: 260,
+                              borderLeft: col > 0 ? "1px solid rgba(255,255,255,0.07)" : undefined,
+                            }}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-medium text-foreground truncate">
-                                {opt.category_name}
-                              </span>
-                              {isActive && (
-                                <span className="text-[10px] shrink-0" style={{ color: "#22d3ee" }}>active</span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground truncate">
-                              {opt.inputs.map(i => `${i.name} ×${i.qty}`).join(", ")}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                            {chunk.map((opt) => {
+                              const isActive = overrides[altPanel.realItemId] === opt.recipe_id;
+                              return (
+                                <button
+                                  key={opt.recipe_id}
+                                  data-node
+                                  onClick={() => handleSelectAlt(altPanel.nodeId, opt.recipe_id)}
+                                  className="flex flex-col gap-1 px-3 py-2.5 text-left border-b border-border last:border-0 hover:bg-white/[0.04] transition-colors"
+                                  style={isActive ? { background: "rgba(34,211,238,0.07)" } : {}}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-medium text-foreground truncate">
+                                      {opt.category_name}
+                                    </span>
+                                    {isActive && (
+                                      <span className="text-[10px] shrink-0" style={{ color: "#22d3ee" }}>active</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground truncate">
+                                    {opt.inputs.map(i => `${i.name} ×${i.qty}`).join(", ")}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               {/* Nodes */}
               <AnimatePresence>
                 {nodes.map((node) => {

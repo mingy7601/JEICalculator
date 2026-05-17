@@ -20,3 +20,4 @@
 - [ ] Limit the height of the canvas and spread the tree across a greater area
 - [ ] Create a search bar helper
 - [ ] Item vs fluid handling
+- [ ] Initially expanded alt does not show current active
