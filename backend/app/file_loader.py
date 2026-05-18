@@ -83,24 +83,27 @@ def apply_emc(recipes, emc_values):
                 if entry:
                     inp["emc"] = entry["emc"]
 
-def remove_recursive_self(recipe):
+def remove_recursive_self(recipe, emc_values=None):
     """
-    Detect recipes where an output item is also consumed as an input (recursive).
-    For each such output, subtract 1 from its qty (to reflect net gain) and remove it from inputs.
-    Recipes where net output qty drops to 0 or below are left unchanged (no real gain).
+            Detect recipes where an output item is also consumed as an input (recursive).
+            For each such output, subtract 1 from its qty (to reflect net gain) and remove it from inputs.
+            Recipes where net output qty drops to 0 or below are left unchanged (no real gain).
     """
     output_ids = {o["id"] for o in recipe.get("outputs", [])}
     recursive_ids = {inp["id"] for inp in recipe.get("inputs", []) if inp["id"] in output_ids}
-
     if not recursive_ids:
         return recipe
+    # Skip removal if any recursive input has an EMC value
+    if emc_values:
+        if any(emc_values.get(rid) for rid in recursive_ids):
+            return recipe
 
     new_outputs = []
     for o in recipe["outputs"]:
         if o["id"] in recursive_ids:
             net_qty = o["qty"] - 1
             if net_qty <= 0:
-                return recipe  # no real gain, leave recipe untouched
+                return recipe
             new_outputs.append({**o, "qty": net_qty})
         else:
             new_outputs.append(o)
@@ -133,24 +136,18 @@ def load_file(recipes, file_dir, emc_values=None):
             if emc_values is not None:
                 for slot in recipe.get("slots", []):
                     tooltip = slot.get("tooltip", [])
-                    emc = None
-                    emc_idx = None
-                    for i, line in enumerate(tooltip):
+                    slot_id = slot.get("id")
+                    if not slot_id:
+                        continue
+                    for line in tooltip:
                         match = re.search(r'(?<!stack )emc\s*:\s*([\d,]+)', line, re.IGNORECASE)
                         if match:
                             emc = int(match.group(1).replace(",", ""))
-                            emc_idx = i
-                    if emc is None or emc_idx is None:
-                        continue
-                    for line in tooltip:
-                        key = line.strip()
-                        if ":" in key and not re.match(r'\s*(stack\s+)?emc\s*:', key, re.IGNORECASE):
-                            if key not in emc_values:
-                                key = "item:" + key
-                                emc_values[key] = {
-                                    "name": tooltip[0] if tooltip else "",
-                                    "emc": emc
-                                }
+                            emc_values[slot_id] = {
+                                "name": tooltip[0] if tooltip else "",
+                                "emc": emc
+                            }
+                            break
 
             recipe_data = {
                 "id": recipe_id,
@@ -161,7 +158,7 @@ def load_file(recipes, file_dir, emc_values=None):
                 "inputs": compress_inputs(inputs),
                 "image_path": image_path
             }
-            recipe_data = remove_recursive_self(recipe_data)
+            recipe_data = remove_recursive_self(recipe_data, emc_values)
 
             for output in outputs:
                 key = output["id"]

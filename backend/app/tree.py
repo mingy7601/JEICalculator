@@ -1,5 +1,25 @@
 #test_input = "item:contenttweaker:mythic_machine_case:0"
 
+# Lower index = higher priority. Categories not in the list are deprioritized.
+MACHINE_PRIORITY = [
+    "nuclearcraft_manufactory",
+    "thermalexpansion.furnace",
+    "minecraft.crafting",
+]
+
+def machine_priority(recipe):
+    category = recipe.get("category", "")
+    try:
+        return MACHINE_PRIORITY.index(category)
+    except ValueError:
+        return len(MACHINE_PRIORITY)
+
+def output_qty(recipe, item_id):
+    for o in recipe.get("outputs", []):
+        if o["id"] == item_id:
+            return o.get("qty", 1)
+    return 0
+
 def would_cycle(input_id, target_id, recipes, depth=0, max_depth=2):
     """Returns True if no non-cyclic recipe exists for input_id."""
     if input_id == target_id:
@@ -11,7 +31,6 @@ def would_cycle(input_id, target_id, recipes, depth=0, max_depth=2):
     if not options:
         return False
 
-    # Filter to recipes that don't directly or indirectly require target_id
     viable = [
         r for r in options
         if not any(
@@ -54,7 +73,13 @@ def build_tree(item, recipes, step=0, max_steps=3, name=None, id_to_name=None, v
         return {"item": item, "name": resolve_name(), "source": "cycle"}
 
     # Step 2: sort viable by output qty descending
-    viable = sorted(viable, key=lambda r: sum(o.get("qty", 1) for o in r.get("outputs", [])), reverse=True)
+    viable = sorted(
+        viable,
+        key=lambda r: (
+            -output_qty(r, item),
+            machine_priority(r),
+        )
+    )
 
     # Step 3: apply override — if valid and viable, promote to front
     override_id = overrides.get(item)
